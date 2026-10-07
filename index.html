@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d9488">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Principles of Modern Chemistry · 目录浏览与智能检索</title>
+<style>
+:root{
+  --bg:#eef2f7; --panel:#fff; --ink:#1e293b; --ink-2:#475569; --ink-3:#94a3b8;
+  --line:#e6ebf1; --accent:#0d9488; --accent-2:#0f766e; --accent-soft:#ccfbf1;
+  --indigo:#4f46e5; --shadow:0 1px 2px rgba(15,23,42,.06),0 10px 28px -14px rgba(15,23,42,.22);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{
+  margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+  color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;overflow:hidden;
+}
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column}
+button{font-family:inherit}
+
+header.top{
+  flex:none;display:flex;align-items:center;gap:14px;padding:10px 16px;
+  background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:30;
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{
+  width:38px;height:38px;border-radius:11px;flex:none;color:#fff;font-weight:800;font-size:12.5px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(140deg,var(--accent),var(--indigo));box-shadow:0 6px 16px -6px rgba(13,148,136,.7);
+}
+.brand h1{margin:0;font-size:14.5px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand .sub{margin:1px 0 0;font-size:11px;color:var(--ink-3)}
+.search{
+  flex:1 1 240px;display:flex;align-items:center;gap:9px;background:#f1f5f9;border:1px solid var(--line);
+  border-radius:11px;padding:0 12px;height:42px;transition:.18s;max-width:560px;
+}
+.search:focus-within{background:#fff;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.search svg{width:17px;height:17px;color:var(--ink-3);flex:none}
+.search input{flex:1;border:0;outline:0;background:transparent;font-size:15px;color:var(--ink);min-width:0}
+.search input::placeholder{color:#9aa7b8}
+.search kbd{font-family:inherit;font-size:11px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:2px 6px}
+.btn{
+  border:1px solid var(--line);background:#fff;color:var(--ink-2);height:42px;padding:0 13px;border-radius:11px;
+  font-size:12.5px;font-weight:650;cursor:pointer;transition:.16s;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent-2);background:#f0fdfa}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.primary{background:linear-gradient(140deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;box-shadow:0 6px 16px -8px rgba(13,148,136,.8)}
+.btn.primary:hover{color:#fff;background:linear-gradient(140deg,var(--accent-2),var(--accent-2))}
+.app.reading #searchWrap,.app.reading #expandAll,.app.reading #collapseAll{display:none}
+
+.stage{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;display:flex;flex-direction:column}
+.view[hidden]{display:none}
+
+/* ---------- toc ---------- */
+.toc-head{
+  flex:none;display:flex;align-items:center;gap:9px;padding:10px 18px;border-bottom:1px solid var(--line);
+  background:rgba(255,255,255,.7);font-size:12.5px;color:var(--ink-3);flex-wrap:wrap;
+}
+.toc-head .grow{flex:1}
+.chip{
+  border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 13px;font-size:12.5px;font-weight:650;
+  color:var(--ink-2);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px;max-width:76%;
+}
+.chip:hover{border-color:var(--accent);color:var(--accent-2);background:#f0fdfa}
+.chip.accent{background:var(--accent-soft);border-color:#99f6e4;color:var(--accent-2)}
+.chip b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:750}
+.toc{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 70px;max-width:1000px;width:100%;margin:0 auto;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.toc::-webkit-scrollbar{width:10px}
+.toc::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px;border:3px solid var(--bg)}
+
+.block{margin-bottom:11px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;box-shadow:var(--shadow)}
+.block-head{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;user-select:none;transition:background .15s}
+.block-head:active{background:#f1f5f9}
+.unit-badge{
+  flex:none;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;color:#fff;background:linear-gradient(140deg,var(--accent),var(--accent-2));
+}
+.unit-badge.alt{background:linear-gradient(140deg,#6366f1,#4338ca)}
+.unit-badge.warm{background:linear-gradient(140deg,#f59e0b,#d97706)}
+.block-head .t{min-width:0;flex:1}
+.block-head .t h2{margin:0;font-size:14.5px;font-weight:750;line-height:1.3}
+.block-head .t p{margin:3px 0 0;font-size:11.5px;color:var(--ink-3)}
+.chev{flex:none;width:19px;height:19px;color:var(--ink-3);transition:transform .22s}
+.block.collapsed .chev{transform:rotate(-90deg)}
+.block-body{padding:0 12px 8px}
+.block.collapsed .block-body{display:none}
+
+.chapter{border-top:1px solid var(--line)}
+.chapter:first-child{border-top:0}
+.ch-head{display:flex;align-items:center;gap:11px;padding:12px 10px;border-radius:10px;cursor:pointer;min-height:48px}
+.ch-head:active{background:#f1f5f9}
+.ch-num{
+  flex:none;min-width:34px;height:32px;padding:0 9px;border-radius:9px;background:var(--accent-soft);color:var(--accent-2);
+  font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;
+}
+.ch-head .ct{flex:1;min-width:0;font-size:13.8px;font-weight:650;line-height:1.35}
+.ch-head .pg{font-size:11.5px;color:var(--ink-3);font-weight:600;flex:none}
+.chapter.collapsed .ch-body{display:none}
+.chapter.collapsed .ch-head .chev{transform:rotate(-90deg)}
+.ch-body{padding:0 2px 8px 14px}
+
+.leaf{
+  display:flex;align-items:baseline;gap:9px;padding:12px 12px 12px 14px;border-radius:10px;cursor:pointer;
+  border-left:3px solid transparent;transition:.14s;min-height:46px;
+}
+.leaf:hover{background:#f0fdfa;border-left-color:var(--accent)}
+.leaf:active{background:var(--accent-soft)}
+.leaf.active{background:var(--accent-soft);border-left-color:var(--accent-2)}
+.leaf.active .stitle{color:var(--accent-2);font-weight:700}
+.leaf .snum{flex:none;font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:750;color:var(--accent-2);min-width:38px}
+.leaf .stitle{font-size:13.6px;color:var(--ink-2);line-height:1.45}
+.leaf .leader{flex:1;border-bottom:1px dotted #d3dce6;margin:0 5px;transform:translateY(-3px);min-width:12px}
+.leaf .pg{flex:none;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;font-weight:600}
+/* 本节作业：与正文小节分开的子条目 */
+.hwrow{
+  display:flex;align-items:baseline;gap:8px;padding:8px 12px 8px 34px;border-radius:10px;cursor:pointer;
+  transition:.14s;min-height:40px;margin:-2px 0 4px;
+}
+.hwrow:hover{background:#fffbeb}
+.hwrow:active{background:#fef3c7}
+.hwrow .hwt{
+  flex:none;font-size:11px;font-weight:800;color:#b45309;background:#fef3c7;border:1px solid #fde68a;
+  border-radius:6px;padding:2px 7px;letter-spacing:.5px;
+}
+.hwrow .hwn{font-size:12.6px;color:#92400e;font-weight:600}
+.hwrow .leader{flex:1;border-bottom:1px dotted #ecdcb8;margin:0 5px;transform:translateY(-3px);min-width:12px}
+.hwrow .pg{flex:none;font-size:11.5px;color:#a16207;font-weight:650;font-variant-numeric:tabular-nums}
+mark{background:#fde68a;color:#7c2d12;border-radius:3px;padding:0 2px}
+.muted{padding:8px 14px 12px;color:var(--ink-3);font-size:12.5px}
+.hidden{display:none !important}
+
+/* ---------- reader ---------- */
+.rbar{
+  flex:none;display:flex;align-items:center;gap:8px;padding:9px 12px;background:#fff;border-bottom:1px solid var(--line);
+  padding-top:calc(9px + env(safe-area-inset-top));
+}
+.rbar .rt{min-width:0;flex:1}
+.rbar .rt .vt{font-size:13.5px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rbar .rt .vs{font-size:11px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ibtn{
+  width:42px;height:42px;flex:none;border-radius:11px;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+.ibtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent-2);background:#f0fdfa}
+.ibtn:active:not(:disabled){background:var(--accent-soft)}
+.ibtn:disabled{opacity:.35;cursor:not-allowed}
+.ibtn svg{width:19px;height:19px}
+.ibtn.txt{width:auto;padding:0 12px;font-size:12.5px;font-weight:650;gap:6px}
+.ibtn.ai{color:var(--accent-2);border-color:#99f6e4;background:#f0fdfa}
+.ibtn.ai:hover:not(:disabled){color:#fff;background:linear-gradient(140deg,var(--accent),var(--accent-2));border-color:transparent}
+
+.rstage{
+  flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;background:#dde4ec;
+  padding:10px 0 14px;position:relative;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+.pagewrap{width:100%;max-width:880px;margin:0 auto;position:relative;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 6px 24px -12px rgba(15,23,42,.4)}
+#pageImg{width:100%;display:block;background:#fff}
+#pageImg.anim{animation:pageIn .2s ease}
+@keyframes pageIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.pload{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#fff;z-index:2}
+.pload.show{display:flex}
+.spinner{width:26px;height:26px;border:3px solid #cbd5e1;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pgmiss{display:none;padding:60px 20px;text-align:center;color:var(--ink-3);font-size:13px}
+.pgmiss.show{display:block}
+
+.rfoot{
+  flex:none;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 12px;
+  background:#fff;border-top:1px solid var(--line);padding-bottom:calc(9px + env(safe-area-inset-bottom));
+}
+.rfoot .nav{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;max-width:620px}
+.pgpill{
+  font-size:13px;font-weight:750;color:var(--ink-2);background:#f1f5f9;border:1px solid var(--line);
+  border-radius:11px;padding:11px 14px;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:96px;text-align:center;
+}
+.lb{display:none}
+
+/* ---------- locate list ---------- */
+.loc-wrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 70px;max-width:900px;width:100%;margin:0 auto}
+.loc-note{
+  background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:12px;padding:11px 13px;
+  font-size:12.5px;line-height:1.6;margin-bottom:12px;
+}
+.loc-item{
+  display:flex;gap:12px;align-items:flex-start;padding:13px 14px;border:1px solid var(--line);border-radius:14px;
+  background:#fff;margin-bottom:10px;cursor:pointer;box-shadow:var(--shadow);transition:.15s;
+}
+.loc-item:hover{border-color:var(--accent);background:#f0fdfa}
+.loc-item:active{background:var(--accent-soft)}
+.loc-rank{
+  flex:none;width:28px;height:28px;border-radius:9px;color:#fff;font-weight:800;font-size:12.5px;
+  display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,var(--accent),var(--accent-2));
+}
+.loc-main{flex:1;min-width:0}
+.loc-title{font-size:14px;font-weight:700;line-height:1.4}
+.loc-title .snum{color:var(--accent-2);margin-right:6px;font-variant-numeric:tabular-nums}
+.loc-ctx{font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.loc-reason{
+  font-size:12.5px;color:var(--ink-2);margin-top:7px;background:#f8fafc;border-left:3px solid var(--accent);
+  padding:7px 10px;border-radius:0 7px 7px 0;line-height:1.55;
+}
+.loc-empty{text-align:center;color:var(--ink-3);font-size:13px;padding:50px 20px;line-height:1.8}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;background:rgba(15,23,42,.45)}
+.modal[hidden]{display:none}
+.modal-card{
+  background:#fff;width:100%;max-width:580px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+  box-shadow:0 -10px 40px rgba(15,23,42,.3);animation:sheetIn .22s ease;
+}
+@keyframes sheetIn{from{transform:translateY(26px);opacity:.6}to{transform:none;opacity:1}}
+.modal-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.modal-head .mt{flex:1;font-size:15px;font-weight:750;display:flex;align-items:center;gap:7px}
+.modal-head .mt .spark{color:var(--accent)}
+.modal-desc{margin:0 0 11px;font-size:12.5px;color:var(--ink-3);line-height:1.6}
+#askInput{
+  width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:15px;font-family:inherit;
+  color:var(--ink);resize:vertical;min-height:84px;outline:none;background:#f8fafc;
+}
+#askInput:focus{background:#fff;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.ask-hints{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.hint-chip{
+  font-size:12px;color:var(--ink-2);background:#f1f5f9;border:1px solid var(--line);border-radius:999px;
+  padding:6px 11px;cursor:pointer;transition:.15s;
+}
+.hint-chip:hover{border-color:var(--accent);color:var(--accent-2);background:#f0fdfa}
+.modal-foot{display:flex;gap:9px;justify-content:flex-end;margin-top:14px}
+.ask-status{font-size:12.5px;margin-top:10px;min-height:18px;color:var(--ink-3);line-height:1.5}
+.ask-status.loading{color:var(--accent-2)}
+.ask-status.error{color:#dc2626}
+
+.toast{
+  position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(16px);
+  opacity:0;pointer-events:none;background:#0f172a;color:#fff;font-size:12.5px;padding:10px 16px;border-radius:10px;
+  transition:.25s;z-index:90;max-width:86vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:640px){
+  header.top{flex-wrap:wrap;gap:10px;padding:9px 12px}
+  .brand{flex:1 1 100%}
+  .search{flex:1 1 100%;max-width:none;order:3}
+  #expandAll,#collapseAll{flex:1 1 auto}
+  .brand h1{font-size:13.5px}
+  .toc{padding:10px 10px 70px}
+  .toc-head{padding:8px 12px}
+  .block{border-radius:12px}
+  .block-head{padding:11px 12px}
+  .block-head .t h2{font-size:13.5px}
+  .unit-badge{width:40px;height:40px;font-size:13px;border-radius:11px}
+  .ch-body{padding-left:8px}
+  .leaf .stitle{font-size:13.2px}
+  .hwrow{padding-left:22px}
+  .rbar{padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top))}
+  .rbar .rt .vt{font-size:13px}
+  .rbar .rt .vs{display:none}
+  .rfoot{padding:8px 8px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+  .pgpill{min-width:84px;padding:10px 10px;font-size:12.5px}
+  .ibtn{width:44px;height:44px}
+  .ibtn.txt{padding:0 10px}
+  .pagewrap{border-radius:0;max-width:none}
+  .rstage{padding:0 0 8px}
+  .loc-wrap{padding:10px 10px 70px}
+}
+@media (min-width:641px){
+  .lb{display:inline}
+  .modal{align-items:center}
+  .modal-card{border-radius:16px;margin:20px}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">PMC</div>
+      <div>
+        <h1>Principles of Modern Chemistry</h1>
+        <p class="sub">7th Edition · 目录浏览与智能检索</p>
+      </div>
+    </div>
+    <div class="search" id="searchWrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="搜索章节、小节或关键词，如 equilibrium、17.4">
+      <kbd>/</kbd>
+    </div>
+    <button class="btn" id="expandAll">展开全部</button>
+    <button class="btn" id="collapseAll">折叠全部</button>
+  </header>
+
+  <div class="stage">
+
+    <section class="view" id="viewToc">
+      <div class="toc-head">
+        <span id="count">共 170 个小节</span>
+        <span class="grow"></span>
+        <span class="chip" id="aiChip">✨ AI 检索</span>
+        <span class="chip accent hidden" id="resumeChip">继续阅读 <b id="resumeText"></b> ▶</span>
+      </div>
+      <div class="toc" id="toc"></div>
+    </section>
+
+    <section class="view" id="viewLocate" hidden>
+      <div class="rbar">
+        <button class="ibtn txt" id="locBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg><span class="lb">目录</span></button>
+        <div class="rt">
+          <div class="vt" id="locQuery">—</div>
+          <div class="vs" id="locMeta">—</div>
+        </div>
+        <button class="ibtn" id="locAgain" title="重新提问"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></button>
+      </div>
+      <div class="loc-wrap" id="locWrap"></div>
+    </section>
+
+    <section class="view" id="viewRead" hidden>
+      <div class="rbar">
+        <button class="ibtn txt" id="btnBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg><span class="lb">目录</span></button>
+        <div class="rt">
+          <div class="vt" id="rTitle">—</div>
+          <div class="vs" id="rCtx">—</div>
+        </div>
+        <button class="ibtn" id="btnZoomOut" title="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/></svg></button>
+        <button class="ibtn" id="btnZoomIn" title="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M8 11h6"/><path d="M11 8v6"/></svg></button>
+        <button class="ibtn ai" id="btnAI" title="AI 检索"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.7 8 18 9.7l-4.3 1.7L12 16l-1.7-4.6L6 9.7 10.3 8z"/><path d="M18.5 15.5 19.3 17.7 21.5 18.5l-2.2.8-.8 2.2-.8-2.2L15.5 18.5l2.2-.8z"/></svg></button>
+        <button class="ibtn" id="btnExt" title="用 PDF 打开"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></button>
+      </div>
+      <div class="rstage" id="rstage">
+        <div class="pagewrap" id="pagewrap">
+          <div class="pload" id="pload"><span class="spinner"></span></div>
+          <div class="pgmiss" id="pgmiss">该页图片缺失，请重新生成或改用 PDF 打开。</div>
+          <img id="pageImg" alt="书页">
+        </div>
+      </div>
+      <div class="rfoot">
+        <div class="nav">
+          <button class="ibtn txt" id="btnPrevSec" title="上一节"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg><span class="lb">上一节</span></button>
+          <button class="ibtn txt" id="btnPrevPage" title="上一页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg><span class="lb">上一页</span></button>
+          <span class="pgpill" id="pgNow">1 / 1288</span>
+          <button class="ibtn txt" id="btnNextPage" title="下一页"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg><span class="lb">下一页</span></button>
+          <button class="ibtn txt" id="btnNextSec" title="下一节"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 17 5-5-5-5"/><path d="m6 17 5-5-5-5"/></svg><span class="lb">下一节</span></button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="modal" id="askModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <span class="mt"><span class="spark">✦</span> AI 辅助检索</span>
+      <button class="ibtn" id="askClose" title="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <p class="modal-desc">输入一个知识点或问题，GLM-4.5-Air 会从全书目录中定位相关小节，生成定位列表。</p>
+    <textarea id="askInput" placeholder="例如：如何用分子轨道理论解释 O2 的顺磁性？"></textarea>
+    <div class="ask-hints" id="askHints">
+      <span class="hint-chip">分子轨道理论解释 O2 顺磁性</span>
+      <span class="hint-chip">化学平衡移动的影响因素</span>
+      <span class="hint-chip">熵与热力学第二定律</span>
+      <span class="hint-chip">能斯特方程与电极电势</span>
+    </div>
+    <div class="ask-status" id="askStatus"></div>
+    <div class="modal-foot">
+      <button class="btn" id="askCancel">取消</button>
+      <button class="btn primary" id="askGo">生成定位列表</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA = {"title": "Principles of Modern Chemistry", "edition": "7th Edition", "totalPages": 1288, "front": [{"id": "FRONT-0", "title": "Cover", "pdf": 1, "printed": ""}, {"id": "FRONT-1", "title": "Title Page", "pdf": 7, "printed": "i"}, {"id": "FRONT-2", "title": "Copyright", "pdf": 8, "printed": "ii"}, {"id": "FRONT-3", "title": "Dedication", "pdf": 9, "printed": "iii"}, {"id": "FRONT-4", "title": "Brief Contents", "pdf": 11, "printed": "v"}, {"id": "FRONT-5", "title": "Contents", "pdf": 13, "printed": "vii"}, {"id": "FRONT-6", "title": "Applications", "pdf": 21, "printed": "xv"}, {"id": "FRONT-7", "title": "Preface", "pdf": 23, "printed": "xvii"}, {"id": "FRONT-8", "title": "About the Authors", "pdf": 42, "printed": "xxxvi"}], "units": [{"title": "Unit I: Introduction to the Study of Modern Chemistry", "pdf": 44, "printed": 1, "chapters": [{"num": 1, "title": "The Atom in Modern Chemistry", "pdf": 47, "printed": 3, "sections": [{"id": "1.1", "num": "1.1", "title": "The Nature of Modern Chemistry", "pdf": 47, "printed": 3}, {"id": "1.2", "num": "1.2", "title": "Macroscopic Methods for Classifying Matter", "pdf": 50, "printed": 6, "hw": {"pdf": 75, "printed": 31}}, {"id": "1.3", "num": "1.3", "title": "Indirect Evidence for the Existence of Atoms: Laws of Chemical Combination", "pdf": 53, "printed": 9, "hw": {"pdf": 75, "printed": 31}}, {"id": "1.4", "num": "1.4", "title": "The Physical Structure of Atoms", "pdf": 60, "printed": 16, "hw": {"pdf": 76, "printed": 32}}]}, {"num": 2, "title": "Chemical Formulas, Equations, and Reaction Yields", "pdf": 79, "printed": 35, "sections": [{"id": "2.1", "num": "2.1", "title": "The Mole: Weighing and Counting Molecules", "pdf": 80, "printed": 36, "hw": {"pdf": 98, "printed": 54}}, {"id": "2.2", "num": "2.2", "title": "Empirical and Molecular Formulas", "pdf": 84, "printed": 40}, {"id": "2.3", "num": "2.3", "title": "Chemical Formula and Percentage Composition", "pdf": 85, "printed": 41, "hw": {"pdf": 98, "printed": 54}}, {"id": "2.4", "num": "2.4", "title": "Writing Balanced Chemical Equations", "pdf": 87, "printed": 43, "hw": {"pdf": 99, "printed": 55}}, {"id": "2.5", "num": "2.5", "title": "Mass Relationships in Chemical Reactions", "pdf": 91, "printed": 47, "hw": {"pdf": 99, "printed": 55}}, {"id": "2.6", "num": "2.6", "title": "Limiting Reactant and Percentage Yield", "pdf": 93, "printed": 49, "hw": {"pdf": 100, "printed": 56}}]}]}, {"title": "Unit II: Chemical Bonding and Molecular Structure", "pdf": 104, "printed": 60, "chapters": [{"num": 3, "title": "Chemical Bonding: The Classical Description", "pdf": 107, "printed": 63, "sections": [{"id": "3.1", "num": "3.1", "title": "Representations of Molecules", "pdf": 109, "printed": 65}, {"id": "3.2", "num": "3.2", "title": "The Periodic Table", "pdf": 114, "printed": 70, "hw": {"pdf": 175, "printed": 131}}, {"id": "3.3", "num": "3.3", "title": "Forces and Potential Energy in Atoms", "pdf": 117, "printed": 73, "hw": {"pdf": 175, "printed": 131}}, {"id": "3.4", "num": "3.4", "title": "Ionization Energies, the Shell Model of the Atom, and Shielding", "pdf": 123, "printed": 79, "hw": {"pdf": 176, "printed": 132}}, {"id": "3.5", "num": "3.5", "title": "Electron Affinity", "pdf": 129, "printed": 85, "hw": {"pdf": 176, "printed": 132}}, {"id": "3.6", "num": "3.6", "title": "Electronegativity: The Tendency of Atoms to Attract Electrons in Molecules", "pdf": 132, "printed": 88}, {"id": "3.7", "num": "3.7", "title": "Forces and Potential Energy in Molecules: Formation of Chemical Bonds", "pdf": 135, "printed": 91, "hw": {"pdf": 176, "printed": 132}}, {"id": "3.8", "num": "3.8", "title": "Ionic Bonding", "pdf": 138, "printed": 94, "hw": {"pdf": 176, "printed": 132}}, {"id": "3.9", "num": "3.9", "title": "Covalent and Polar Covalent Bonding", "pdf": 142, "printed": 98, "hw": {"pdf": 177, "printed": 133}}, {"id": "3.10", "num": "3.10", "title": "Electron Pair Bonds and Lewis Diagrams for Molecules", "pdf": 151, "printed": 107, "hw": {"pdf": 177, "printed": 133}}, {"id": "3.11", "num": "3.11", "title": "The Shapes of Molecules: Valence Shell Electron-Pair Repulsion Theory", "pdf": 159, "printed": 115, "hw": {"pdf": 178, "printed": 134}}, {"id": "3.12", "num": "3.12", "title": "Oxidation Numbers", "pdf": 164, "printed": 120, "hw": {"pdf": 179, "printed": 135}}, {"id": "3.13", "num": "3.13", "title": "Inorganic Nomenclature", "pdf": 166, "printed": 122, "hw": {"pdf": 179, "printed": 135}}]}, {"num": 4, "title": "Introduction to Quantum Mechanics", "pdf": 183, "printed": 139, "sections": [{"id": "4.1", "num": "4.1", "title": "Preliminaries: Wave Motion and Light", "pdf": 185, "printed": 141, "hw": {"pdf": 232, "printed": 188}}, {"id": "4.2", "num": "4.2", "title": "Evidence for Energy Quantization in Atoms", "pdf": 189, "printed": 145, "hw": {"pdf": 232, "printed": 188}}, {"id": "4.3", "num": "4.3", "title": "The Bohr Model: Predicting Discrete Energy Levels in Atoms", "pdf": 197, "printed": 153, "hw": {"pdf": 233, "printed": 189}}, {"id": "4.4", "num": "4.4", "title": "Evidence for Wave–Particle Duality", "pdf": 201, "printed": 157, "hw": {"pdf": 233, "printed": 189}}, {"id": "4.5", "num": "4.5", "title": "The Schrödinger Equation", "pdf": 211, "printed": 167}, {"id": "4.6", "num": "4.6", "title": "Quantum Mechanics of Particle-in-a-Box Models", "pdf": 216, "printed": 172, "hw": {"pdf": 234, "printed": 190}}, {"id": "4.7", "num": "4.7", "title": "A Deeper Look: Wave Functions for Particles in Two- and Three-Dimensional Boxes", "pdf": 222, "printed": 178, "hw": {"pdf": 234, "printed": 190}}]}, {"num": 5, "title": "Quantum Mechanics and Atomic Structure", "pdf": 237, "printed": 193, "sections": [{"id": "5.1", "num": "5.1", "title": "The Hydrogen Atom", "pdf": 239, "printed": 195, "hw": {"pdf": 276, "printed": 232}}, {"id": "5.2", "num": "5.2", "title": "Shell Model for Many-Electron Atoms", "pdf": 254, "printed": 210, "hw": {"pdf": 276, "printed": 232}}, {"id": "5.3", "num": "5.3", "title": "Aufbau Principle and Electron Configurations", "pdf": 259, "printed": 215, "hw": {"pdf": 276, "printed": 232}}, {"id": "5.4", "num": "5.4", "title": "Shells and the Periodic Table: Photoelectron Spectroscopy", "pdf": 264, "printed": 220, "hw": {"pdf": 277, "printed": 233}}, {"id": "5.5", "num": "5.5", "title": "Periodic Properties and Electronic Structure", "pdf": 268, "printed": 224, "hw": {"pdf": 277, "printed": 233}}]}, {"num": 6, "title": "Quantum Mechanics and Molecular Structure", "pdf": 279, "printed": 235, "sections": [{"id": "6.1", "num": "6.1", "title": "Quantum Picture of the Chemical Bond", "pdf": 281, "printed": 237, "hw": {"pdf": 347, "printed": 303}}, {"id": "6.2", "num": "6.2", "title": "Exact Molecular Orbitals for the Simplest Molecule: H2+", "pdf": 285, "printed": 241}, {"id": "6.3", "num": "6.3", "title": "Molecular Orbital Theory and the Linear Combination of Atomic Orbitals Approximation for H2+", "pdf": 291, "printed": 247, "hw": {"pdf": 348, "printed": 304}}, {"id": "6.4", "num": "6.4", "title": "Homonuclear Diatomic Molecules: First-Period Atoms", "pdf": 295, "printed": 251}, {"id": "6.5", "num": "6.5", "title": "Homonuclear Diatomic Molecules: Second-Period Atoms", "pdf": 297, "printed": 253}, {"id": "6.6", "num": "6.6", "title": "Heteronuclear Diatomic Molecules", "pdf": 306, "printed": 262}, {"id": "6.7", "num": "6.7", "title": "Summary Comments for the LCAO Method and Diatomic Molecules", "pdf": 309, "printed": 265}, {"id": "6.8", "num": "6.8", "title": "Valence Bond Theory and the Electron Pair Bond", "pdf": 312, "printed": 268}, {"id": "6.9", "num": "6.9", "title": "Orbital Hybridization for Polyatomic Molecules", "pdf": 317, "printed": 273}, {"id": "6.10", "num": "6.10", "title": "Predicting Molecular Structures and Shapes", "pdf": 325, "printed": 281}, {"id": "6.11", "num": "6.11", "title": "Using the LCAO and Valence Bond Methods Together", "pdf": 330, "printed": 286, "hw": {"pdf": 349, "printed": 305}}, {"id": "6.12", "num": "6.12", "title": "Summary and Comparison of the LCAO and Valence Bond Methods", "pdf": 333, "printed": 289}, {"id": "6.13", "num": "6.13", "title": "A Deeper Look: Properties of the Exact Molecular Orbitals for H2+", "pdf": 338, "printed": 294}]}, {"num": 7, "title": "Bonding in Organic Molecules", "pdf": 351, "printed": 307, "sections": [{"id": "7.1", "num": "7.1", "title": "Petroleum Refining and the Hydrocarbons", "pdf": 352, "printed": 308, "hw": {"pdf": 387, "printed": 343}}, {"id": "7.2", "num": "7.2", "title": "The Alkanes", "pdf": 353, "printed": 309}, {"id": "7.3", "num": "7.3", "title": "The Alkenes and Alkynes", "pdf": 358, "printed": 314}, {"id": "7.4", "num": "7.4", "title": "Aromatic Hydrocarbons", "pdf": 363, "printed": 319}, {"id": "7.5", "num": "7.5", "title": "Fullerenes", "pdf": 366, "printed": 322, "hw": {"pdf": 388, "printed": 344}}, {"id": "7.6", "num": "7.6", "title": "Functional Groups and Organic Reactions", "pdf": 368, "printed": 324, "hw": {"pdf": 388, "printed": 344}}, {"id": "7.7", "num": "7.7", "title": "Pesticides and Pharmaceuticals", "pdf": 378, "printed": 334, "hw": {"pdf": 389, "printed": 345}}]}, {"num": 8, "title": "Bonding in Transition Metal Compounds and Coordination Complexes", "pdf": 391, "printed": 347, "sections": [{"id": "8.1", "num": "8.1", "title": "Chemistry of the Transition Metals", "pdf": 392, "printed": 348, "hw": {"pdf": 432, "printed": 388}}, {"id": "8.2", "num": "8.2", "title": "Introduction to Coordination Chemistry", "pdf": 399, "printed": 355, "hw": {"pdf": 433, "printed": 389}}, {"id": "8.3", "num": "8.3", "title": "Structures of Coordination Complexes", "pdf": 405, "printed": 361, "hw": {"pdf": 433, "printed": 389}}, {"id": "8.4", "num": "8.4", "title": "Crystal Field Theory: Optical and Magnetic Properties", "pdf": 411, "printed": 367, "hw": {"pdf": 433, "printed": 389}}, {"id": "8.5", "num": "8.5", "title": "Optical Properties and the Spectrochemical Series", "pdf": 418, "printed": 374, "hw": {"pdf": 434, "printed": 390}}, {"id": "8.6", "num": "8.6", "title": "Bonding in Coordination Complexes", "pdf": 420, "printed": 376}]}]}, {"title": "Unit III: Kinetic Molecular Description of the States of Matter", "pdf": 436, "printed": 392, "chapters": [{"num": 9, "title": "The Gaseous State", "pdf": 439, "printed": 395, "sections": [{"id": "9.1", "num": "9.1", "title": "The Chemistry of Gases", "pdf": 440, "printed": 396, "hw": {"pdf": 479, "printed": 435}}, {"id": "9.2", "num": "9.2", "title": "Pressure and Temperature of Gases", "pdf": 442, "printed": 398, "hw": {"pdf": 479, "printed": 435}}, {"id": "9.3", "num": "9.3", "title": "The Ideal Gas Law", "pdf": 449, "printed": 405, "hw": {"pdf": 480, "printed": 436}}, {"id": "9.4", "num": "9.4", "title": "Mixtures of Gases", "pdf": 452, "printed": 408, "hw": {"pdf": 481, "printed": 437}}, {"id": "9.5", "num": "9.5", "title": "The Kinetic Theory of Gases", "pdf": 454, "printed": 410, "hw": {"pdf": 481, "printed": 437}}, {"id": "9.6", "num": "9.6", "title": "Real Gases: Intermolecular Forces", "pdf": 461, "printed": 417, "hw": {"pdf": 481, "printed": 437}}, {"id": "9.7", "num": "9.7", "title": "A Deeper Look: Molecular Collisions and Rate Processes", "pdf": 466, "printed": 422, "hw": {"pdf": 482, "printed": 438}}]}, {"num": 10, "title": "Solids, Liquids, and Phase Transitions", "pdf": 487, "printed": 443, "sections": [{"id": "10.1", "num": "10.1", "title": "Bulk Properties of Gases, Liquids, and Solids: Molecular Interpretation", "pdf": 488, "printed": 444, "hw": {"pdf": 513, "printed": 469}}, {"id": "10.2", "num": "10.2", "title": "Intermolecular Forces: Origins in Molecular Structure", "pdf": 493, "printed": 449, "hw": {"pdf": 513, "printed": 469}}, {"id": "10.3", "num": "10.3", "title": "Intermolecular Forces in Liquids", "pdf": 499, "printed": 455, "hw": {"pdf": 513, "printed": 469}}, {"id": "10.4", "num": "10.4", "title": "Phase Equilibrium", "pdf": 503, "printed": 459, "hw": {"pdf": 514, "printed": 470}}, {"id": "10.5", "num": "10.5", "title": "Phase Transitions", "pdf": 504, "printed": 460, "hw": {"pdf": 514, "printed": 470}}, {"id": "10.6", "num": "10.6", "title": "Phase Diagrams", "pdf": 506, "printed": 462, "hw": {"pdf": 514, "printed": 470}}]}, {"num": 11, "title": "Solutions", "pdf": 517, "printed": 473, "sections": [{"id": "11.1", "num": "11.1", "title": "Composition of Solutions", "pdf": 518, "printed": 474, "hw": {"pdf": 553, "printed": 509}}, {"id": "11.2", "num": "11.2", "title": "Nature of Dissolved Species", "pdf": 522, "printed": 478, "hw": {"pdf": 553, "printed": 509}}, {"id": "11.3", "num": "11.3", "title": "Reaction Stoichiometry in Solutions: Acid–Base Titrations", "pdf": 525, "printed": 481, "hw": {"pdf": 554, "printed": 510}}, {"id": "11.4", "num": "11.4", "title": "Reaction Stoichiometry in Solutions: Oxidation–Reduction Titrations", "pdf": 529, "printed": 485, "hw": {"pdf": 554, "printed": 510}}, {"id": "11.5", "num": "11.5", "title": "Phase Equilibrium in Solutions: Nonvolatile Solutes", "pdf": 535, "printed": 491, "hw": {"pdf": 555, "printed": 511}}, {"id": "11.6", "num": "11.6", "title": "Phase Equilibrium in Solutions: Volatile Solutes", "pdf": 543, "printed": 499, "hw": {"pdf": 556, "printed": 512}}, {"id": "11.7", "num": "11.7", "title": "Colloidal Suspensions", "pdf": 548, "printed": 504}]}]}, {"title": "Unit IV: Equilibrium in Chemical Reactions", "pdf": 560, "printed": 516, "chapters": [{"num": 12, "title": "Thermodynamic Processes and Thermochemistry", "pdf": 563, "printed": 519, "sections": [{"id": "12.1", "num": "12.1", "title": "Systems, States, and Processes", "pdf": 565, "printed": 521}, {"id": "12.2", "num": "12.2", "title": "The First Law of Thermodynamics: Internal Energy, Work, and Heat", "pdf": 568, "printed": 524, "hw": {"pdf": 607, "printed": 563}}, {"id": "12.3", "num": "12.3", "title": "Heat Capacity, Calorimetry, and Enthalpy", "pdf": 574, "printed": 530, "hw": {"pdf": 608, "printed": 564}}, {"id": "12.4", "num": "12.4", "title": "The First Law and Ideal Gas Processes", "pdf": 577, "printed": 533, "hw": {"pdf": 608, "printed": 564}}, {"id": "12.5", "num": "12.5", "title": "Molecular Contributions to Internal Energy and Heat Capacity", "pdf": 581, "printed": 537, "hw": {"pdf": 609, "printed": 565}}, {"id": "12.6", "num": "12.6", "title": "Thermochemistry", "pdf": 586, "printed": 542, "hw": {"pdf": 609, "printed": 565}}, {"id": "12.7", "num": "12.7", "title": "Reversible Processes in Ideal Gases", "pdf": 595, "printed": 551, "hw": {"pdf": 611, "printed": 567}}, {"id": "12.8", "num": "12.8", "title": "A Deeper Look: Distribution of Energy among Molecules", "pdf": 600, "printed": 556, "hw": {"pdf": 611, "printed": 567}}]}, {"num": 13, "title": "Spontaneous Processes and Thermodynamic Equilibrium", "pdf": 615, "printed": 571, "sections": [{"id": "13.1", "num": "13.1", "title": "The Nature of Spontaneous Processes", "pdf": 616, "printed": 572, "hw": {"pdf": 651, "printed": 607}}, {"id": "13.2", "num": "13.2", "title": "Entropy and Spontaneity: A Molecular Statistical Interpretation", "pdf": 619, "printed": 575, "hw": {"pdf": 651, "printed": 607}}, {"id": "13.3", "num": "13.3", "title": "Entropy and Heat: Macroscopic Basis of the Second Law of Thermodynamics", "pdf": 624, "printed": 580}, {"id": "13.4", "num": "13.4", "title": "Entropy Changes in Reversible Processes", "pdf": 626, "printed": 582, "hw": {"pdf": 652, "printed": 608}}, {"id": "13.5", "num": "13.5", "title": "Entropy Changes and Spontaneity", "pdf": 630, "printed": 586, "hw": {"pdf": 652, "printed": 608}}, {"id": "13.6", "num": "13.6", "title": "The Third Law of Thermodynamics", "pdf": 634, "printed": 590, "hw": {"pdf": 652, "printed": 608}}, {"id": "13.7", "num": "13.7", "title": "The Gibbs Free Energy", "pdf": 636, "printed": 592, "hw": {"pdf": 653, "printed": 609}}, {"id": "13.8", "num": "13.8", "title": "A Deeper Look: Carnot Cycles, Efficiency, and Entropy", "pdf": 641, "printed": 597, "hw": {"pdf": 654, "printed": 610}}]}, {"num": 14, "title": "Chemical Equilibrium", "pdf": 657, "printed": 613, "sections": [{"id": "14.1", "num": "14.1", "title": "The Nature of Chemical Equilibrium", "pdf": 658, "printed": 614}, {"id": "14.2", "num": "14.2", "title": "The Empirical Law of Mass Action", "pdf": 662, "printed": 618, "hw": {"pdf": 703, "printed": 659}}, {"id": "14.3", "num": "14.3", "title": "Thermodynamic Description of the Equilibrium State", "pdf": 667, "printed": 623, "hw": {"pdf": 704, "printed": 660}}, {"id": "14.4", "num": "14.4", "title": "The Law of Mass Action for Related and Simultaneous Equilibria", "pdf": 674, "printed": 630, "hw": {"pdf": 704, "printed": 660}}, {"id": "14.5", "num": "14.5", "title": "Equilibrium Calculations for Gas-Phase and Heterogeneous Reactions", "pdf": 676, "printed": 632, "hw": {"pdf": 704, "printed": 660}}, {"id": "14.6", "num": "14.6", "title": "The Direction of Change in Chemical Reactions: Empirical Description", "pdf": 683, "printed": 639, "hw": {"pdf": 706, "printed": 662}}, {"id": "14.7", "num": "14.7", "title": "The Direction of Change in Chemical Reactions: Thermodynamic Explanation", "pdf": 690, "printed": 646, "hw": {"pdf": 707, "printed": 663}}, {"id": "14.8", "num": "14.8", "title": "Distribution of a Single Species between Immiscible Phases: Extraction and Separation Processes", "pdf": 694, "printed": 650, "hw": {"pdf": 708, "printed": 664}}]}, {"num": 15, "title": "Acid–Base Equilibria", "pdf": 713, "printed": 669, "sections": [{"id": "15.1", "num": "15.1", "title": "Classifications of Acids and Bases", "pdf": 714, "printed": 670, "hw": {"pdf": 769, "printed": 725}}, {"id": "15.2", "num": "15.2", "title": "Properties of Acids and Bases in Aqueous Solutions: The Brønsted–Lowry Scheme", "pdf": 721, "printed": 677, "hw": {"pdf": 770, "printed": 726}}, {"id": "15.3", "num": "15.3", "title": "Acid and Base Strength", "pdf": 725, "printed": 681, "hw": {"pdf": 770, "printed": 726}}, {"id": "15.4", "num": "15.4", "title": "Equilibria Involving Weak Acids and Bases", "pdf": 733, "printed": 689, "hw": {"pdf": 770, "printed": 726}}, {"id": "15.5", "num": "15.5", "title": "Buffer Solutions", "pdf": 738, "printed": 694, "hw": {"pdf": 771, "printed": 727}}, {"id": "15.6", "num": "15.6", "title": "Acid–Base Titration Curves", "pdf": 743, "printed": 699, "hw": {"pdf": 771, "printed": 727}}, {"id": "15.7", "num": "15.7", "title": "Polyprotic Acids", "pdf": 748, "printed": 704, "hw": {"pdf": 772, "printed": 728}}, {"id": "15.8", "num": "15.8", "title": "Organic Acids and Bases: Structure and Reactivity", "pdf": 754, "printed": 710, "hw": {"pdf": 772, "printed": 728}}, {"id": "15.9", "num": "15.9", "title": "A Deeper Look: Exact Treatment of Acid–Base Equilibria", "pdf": 758, "printed": 714, "hw": {"pdf": 773, "printed": 729}}]}, {"num": 16, "title": "Solubility and Precipitation Equilibria", "pdf": 777, "printed": 733, "sections": [{"id": "16.1", "num": "16.1", "title": "The Nature of Solubility Equilibria", "pdf": 778, "printed": 734, "hw": {"pdf": 802, "printed": 758}}, {"id": "16.2", "num": "16.2", "title": "Ionic Equilibria between Solids and Solutions", "pdf": 781, "printed": 737, "hw": {"pdf": 802, "printed": 758}}, {"id": "16.3", "num": "16.3", "title": "Precipitation and the Solubility Product", "pdf": 784, "printed": 740, "hw": {"pdf": 802, "printed": 758}}, {"id": "16.4", "num": "16.4", "title": "The Effects of pH on Solubility", "pdf": 788, "printed": 744, "hw": {"pdf": 803, "printed": 759}}, {"id": "16.5", "num": "16.5", "title": "Complex Ions and Solubility", "pdf": 790, "printed": 746, "hw": {"pdf": 803, "printed": 759}}, {"id": "16.6", "num": "16.6", "title": "A Deeper Look: Selective Precipitation of Ions", "pdf": 795, "printed": 751, "hw": {"pdf": 804, "printed": 760}}]}, {"num": 17, "title": "Electrochemistry", "pdf": 807, "printed": 763, "sections": [{"id": "17.1", "num": "17.1", "title": "Electrochemical Cells", "pdf": 808, "printed": 764, "hw": {"pdf": 867, "printed": 823}}, {"id": "17.2", "num": "17.2", "title": "Cell Potentials and the Gibbs Free Energy", "pdf": 814, "printed": 770, "hw": {"pdf": 868, "printed": 824}}, {"id": "17.3", "num": "17.3", "title": "Molecular Interpretation of Electrochemical Processes", "pdf": 824, "printed": 780}, {"id": "17.4", "num": "17.4", "title": "Concentration Effects and the Nernst Equation", "pdf": 825, "printed": 781, "hw": {"pdf": 869, "printed": 825}}, {"id": "17.5", "num": "17.5", "title": "Molecular Electrochemistry", "pdf": 831, "printed": 787, "hw": {"pdf": 870, "printed": 826}}, {"id": "17.6", "num": "17.6", "title": "Batteries and Fuel Cells", "pdf": 844, "printed": 800, "hw": {"pdf": 870, "printed": 826}}, {"id": "17.7", "num": "17.7", "title": "Corrosion and Corrosion Prevention", "pdf": 852, "printed": 808, "hw": {"pdf": 871, "printed": 827}}, {"id": "17.8", "num": "17.8", "title": "Electrometallurgy", "pdf": 854, "printed": 810, "hw": {"pdf": 871, "printed": 827}}, {"id": "17.9", "num": "17.9", "title": "A Deeper Look: Electrolysis of Water and Aqueous Solutions", "pdf": 860, "printed": 816, "hw": {"pdf": 871, "printed": 827}}]}]}, {"title": "Unit V: Rates of Chemical and Physical Processes", "pdf": 876, "printed": 832, "chapters": [{"num": 18, "title": "Chemical Kinetics", "pdf": 879, "printed": 835, "sections": [{"id": "18.1", "num": "18.1", "title": "Rates of Chemical Reactions", "pdf": 880, "printed": 836, "hw": {"pdf": 925, "printed": 881}}, {"id": "18.2", "num": "18.2", "title": "Rate Laws", "pdf": 883, "printed": 839, "hw": {"pdf": 926, "printed": 882}}, {"id": "18.3", "num": "18.3", "title": "Reaction Mechanisms", "pdf": 890, "printed": 846, "hw": {"pdf": 927, "printed": 883}}, {"id": "18.4", "num": "18.4", "title": "Reaction Mechanisms and Rate", "pdf": 894, "printed": 850, "hw": {"pdf": 927, "printed": 883}}, {"id": "18.5", "num": "18.5", "title": "Effect of Temperature on Reaction Rates", "pdf": 900, "printed": 856, "hw": {"pdf": 928, "printed": 884}}, {"id": "18.6", "num": "18.6", "title": "Molecular Theories of Elementary Reactions", "pdf": 903, "printed": 859, "hw": {"pdf": 929, "printed": 885}}, {"id": "18.7", "num": "18.7", "title": "Reactions in Solution", "pdf": 912, "printed": 868, "hw": {"pdf": 929, "printed": 885}}, {"id": "18.8", "num": "18.8", "title": "Catalysis", "pdf": 913, "printed": 869, "hw": {"pdf": 929, "printed": 885}}]}, {"num": 19, "title": "Nuclear Chemistry", "pdf": 935, "printed": 891, "sections": [{"id": "19.1", "num": "19.1", "title": "Radioactivity", "pdf": 936, "printed": 892}, {"id": "19.2", "num": "19.2", "title": "Nuclear Structure and Nuclear Decay Processes", "pdf": 938, "printed": 894, "hw": {"pdf": 980, "printed": 936}}, {"id": "19.3", "num": "19.3", "title": "Mass–Energy Relationships", "pdf": 947, "printed": 903, "hw": {"pdf": 980, "printed": 936}}, {"id": "19.4", "num": "19.4", "title": "Kinetics of Radioactive Decay", "pdf": 952, "printed": 908, "hw": {"pdf": 981, "printed": 937}}, {"id": "19.5", "num": "19.5", "title": "Radiation in Biology and Medicine", "pdf": 957, "printed": 913, "hw": {"pdf": 981, "printed": 937}}, {"id": "19.6", "num": "19.6", "title": "Nuclear Fission", "pdf": 961, "printed": 917, "hw": {"pdf": 982, "printed": 938}}, {"id": "19.7", "num": "19.7", "title": "Nuclear Fusion and Nucleosynthesis", "pdf": 966, "printed": 922, "hw": {"pdf": 982, "printed": 938}}, {"id": "19.8", "num": "19.8", "title": "A Deeper Look: The Shell Model of the Nucleus", "pdf": 969, "printed": 925}]}, {"num": 20, "title": "Molecular Spectroscopy and Photochemistry", "pdf": 985, "printed": 941, "sections": [{"id": "20.1", "num": "20.1", "title": "Introduction to Molecular Spectroscopy", "pdf": 986, "printed": 942, "hw": {"pdf": 1072, "printed": 1028}}, {"id": "20.2", "num": "20.2", "title": "Experimental Methods in Molecular Spectroscopy", "pdf": 991, "printed": 947}, {"id": "20.3", "num": "20.3", "title": "Rotational and Vibrational Spectroscopy", "pdf": 992, "printed": 948, "hw": {"pdf": 1069, "printed": 1025}}, {"id": "20.4", "num": "20.4", "title": "Nuclear Magnetic Resonance Spectroscopy", "pdf": 1010, "printed": 966, "hw": {"pdf": 1071, "printed": 1027}}, {"id": "20.5", "num": "20.5", "title": "Electronic Spectroscopy and Excited State Relaxation Processes", "pdf": 1017, "printed": 973, "hw": {"pdf": 1073, "printed": 1029}}, {"id": "20.6", "num": "20.6", "title": "Introduction to Atmospheric Chemistry", "pdf": 1036, "printed": 992, "hw": {"pdf": 1073, "printed": 1029}}, {"id": "20.7", "num": "20.7", "title": "Photosynthesis", "pdf": 1053, "printed": 1009, "hw": {"pdf": 1073, "printed": 1029}}, {"id": "20.8", "num": "20.8", "title": "A Deeper Look: The Einstein Radiation Relations and Lasers", "pdf": 1059, "printed": 1015}]}]}, {"title": "Unit VI: Materials", "pdf": 1076, "printed": 1032, "chapters": [{"num": 21, "title": "Structure and Bonding in Solids", "pdf": 1079, "printed": 1035, "sections": [{"id": "21.1", "num": "21.1", "title": "Crystal Symmetry and the Unit Cell", "pdf": 1080, "printed": 1036, "hw": {"pdf": 1108, "printed": 1064}}, {"id": "21.2", "num": "21.2", "title": "Crystal Structure", "pdf": 1086, "printed": 1042, "hw": {"pdf": 1109, "printed": 1065}}, {"id": "21.3", "num": "21.3", "title": "Cohesion in Solids", "pdf": 1091, "printed": 1047, "hw": {"pdf": 1110, "printed": 1066}}, {"id": "21.4", "num": "21.4", "title": "Defects and Amorphous Solids", "pdf": 1097, "printed": 1053, "hw": {"pdf": 1110, "printed": 1066}}, {"id": "21.5", "num": "21.5", "title": "A Deeper Look: Lattice Energies of Crystals", "pdf": 1101, "printed": 1057, "hw": {"pdf": 1110, "printed": 1066}}]}, {"num": 22, "title": "Inorganic Materials", "pdf": 1113, "printed": 1069, "sections": [{"id": "22.1", "num": "22.1", "title": "Minerals: Naturally Occurring Inorganic Materials", "pdf": 1114, "printed": 1070, "hw": {"pdf": 1144, "printed": 1100}}, {"id": "22.2", "num": "22.2", "title": "Properties of Ceramics", "pdf": 1119, "printed": 1075}, {"id": "22.3", "num": "22.3", "title": "Silicate Ceramics", "pdf": 1121, "printed": 1077, "hw": {"pdf": 1144, "printed": 1100}}, {"id": "22.4", "num": "22.4", "title": "Nonsilicate Ceramics", "pdf": 1126, "printed": 1082, "hw": {"pdf": 1145, "printed": 1101}}, {"id": "22.5", "num": "22.5", "title": "Electrical Conduction in Materials", "pdf": 1130, "printed": 1086, "hw": {"pdf": 1145, "printed": 1101}}, {"id": "22.6", "num": "22.6", "title": "Band Theory of Conduction", "pdf": 1134, "printed": 1090, "hw": {"pdf": 1145, "printed": 1101}}, {"id": "22.7", "num": "22.7", "title": "Semiconductors", "pdf": 1137, "printed": 1093, "hw": {"pdf": 1145, "printed": 1101}}, {"id": "22.8", "num": "22.8", "title": "Pigments and Phosphors: Optical Displays", "pdf": 1140, "printed": 1096, "hw": {"pdf": 1146, "printed": 1102}}]}, {"num": 23, "title": "Polymeric Materials and Soft Condensed Matter", "pdf": 1149, "printed": 1105, "sections": [{"id": "23.1", "num": "23.1", "title": "Polymerization Reactions for Synthetic Polymers", "pdf": 1150, "printed": 1106, "hw": {"pdf": 1175, "printed": 1131}}, {"id": "23.2", "num": "23.2", "title": "Applications for Synthetic Polymers", "pdf": 1154, "printed": 1110, "hw": {"pdf": 1175, "printed": 1131}}, {"id": "23.3", "num": "23.3", "title": "Liquid Crystals", "pdf": 1161, "printed": 1117, "hw": {"pdf": 1175, "printed": 1131}}, {"id": "23.4", "num": "23.4", "title": "Natural Polymers", "pdf": 1163, "printed": 1119, "hw": {"pdf": 1175, "printed": 1131}}]}]}], "appendices": {"title": "Appendices", "pdf": 1177, "printed": "A.1", "items": [{"id": "APX-A", "title": "Appendix A Scientific Notation and Experimental Error", "pdf": 1178, "printed": "A.2"}, {"id": "APX-B", "title": "Appendix B SI Units, Unit Conversions, and Physics for General Chemistry", "pdf": 1185, "printed": "A.9"}, {"id": "APX-C", "title": "Appendix C Mathematics for General Chemistry", "pdf": 1197, "printed": "A.21"}, {"id": "APX-D", "title": "Appendix D Standard Chemical Thermodynamic Properties", "pdf": 1211, "printed": "A.35"}, {"id": "APX-E", "title": "Appendix E Standard Reaction Potentials at 25°C", "pdf": 1219, "printed": "A.43"}, {"id": "APX-F", "title": "Appendix F Physical Properties of the Elements", "pdf": 1221, "printed": "A.45"}, {"id": "APX-G", "title": "Appendix G Answers to Odd-Numbered Problems", "pdf": 1231, "printed": "A.55"}]}, "index": {"id": "IDX", "title": "Index/Glossary", "pdf": 1257, "printed": "I.1"}, "counts": {"units": 6, "chapters": 23, "sections": 170}};
+const PDF_URL = "Principles_of_Modern_Chemistry.pdf";
+const AI_ENABLED = false;
+const TOTAL = DATA.totalPages;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => String(s).toLowerCase();
+const romanOf = t => (t.match(/^Unit\s+([IVX]+)/i) || [,''])[1].toUpperCase();
+function hl(text, q){
+  const e = esc(text);
+  if(!q) return e;
+  const needle = esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try { return e.replace(new RegExp('(' + needle + ')', 'ig'), '<mark>$1</mark>'); } catch(_) { return e; }
+}
+const pageSrc = p => 'pages/' + String(p).padStart(4, '0') + '.webp';
+
+/* ---- flat leaves ---- */
+const LEAVES = [];
+DATA.front.forEach(f => LEAVES.push({id:f.id, num:'', title:f.title, printed:f.printed, pdf:f.pdf, ctx:'前置内容'}));
+DATA.units.forEach(u => u.chapters.forEach(c => c.sections.forEach(s =>
+  LEAVES.push({id:s.id, num:s.num, title:s.title, printed:s.printed, pdf:s.pdf, ctx:'Ch '+c.num+' · '+c.title}))));
+if(DATA.appendices) DATA.appendices.items.forEach(a =>
+  LEAVES.push({id:a.id, num:'', title:a.title, printed:a.printed, pdf:a.pdf, ctx:'附录 Appendices'}));
+if(DATA.index) LEAVES.push({id:DATA.index.id, num:'', title:DATA.index.title, printed:DATA.index.printed, pdf:DATA.index.pdf, ctx:'索引 Index'});
+const idToIdx = new Map(LEAVES.map((L, i) => [L.id, i]));
+const chapterFirst = new Map(), unitFirst = new Map();
+DATA.units.forEach(u => {
+  const rn = romanOf(u.title);
+  let first = null;
+  u.chapters.forEach(c => {
+    const s0 = c.sections[0];
+    if(s0){ if(!first) first = s0.id; chapterFirst.set(c.num, s0.id); }
+  });
+  if(first) unitFirst.set(rn, first);
+});
+
+const expanded = new Set(['u0']);
+const chExpanded = new Set();
+let query = '', activeIdx = -1, curPage = 1, zoom = 1;
+let swipeHinted = false, lastLocate = null;
+const ZOOMS = [1, 1.4, 1.9, 2.6];
+
+/* ---- render toc ---- */
+function render(){
+  const q = norm(query).trim();
+  let html = '', shown = 0;
+
+  const fr = DATA.front.map((f,i)=>({...f, idx:i})).filter(f => !q || norm(f.title).includes(q));
+  if(fr.length){
+    html += '<div class="block" data-block="front">' + head('front','前','Front Matter 前置内容', fr.length+' 项', '');
+    html += '<div class="block-body">';
+    fr.forEach(f => { shown++; html += leafRow(f.idx, '', f.title, f.printed, q); });
+    html += '</div></div>';
+  }
+
+  let base = DATA.front.length;
+  DATA.units.forEach((u, ui) => {
+    const rid = 'u'+ui, rn = romanOf(u.title);
+    const chs = u.chapters.map((c, ci) => ({c, ci, secs: c.sections.map(s => ({...s, idx: 0}))}));
+    let cursor = base;
+    chs.forEach(ch => ch.secs.forEach(s => { s.idx = cursor++; }));
+    base += u.chapters.reduce((a,c)=>a+c.sections.length,0);
+
+    const vis = chs.map(ch => {
+      const secs = ch.secs.filter(s => !q || norm(s.num+' '+s.title).includes(q) || norm(ch.c.title).includes(q) || norm('ch'+ch.c.num).includes(q) || norm('chapter '+ch.c.num).includes(q));
+      const ok = !q || norm(ch.c.title).includes(q) || norm('ch'+ch.c.num).includes(q) || norm('chapter '+ch.c.num).includes(q) || secs.length > 0;
+      return {ch, secs, ok};
+    }).filter(x => x.ok);
+    if(q && vis.length === 0 && !norm(u.title).includes(q) && !norm('unit '+rn).includes(q)) return;
+
+    const isOpen = q ? true : expanded.has(rid);
+    html += '<div class="block'+(isOpen?'':' collapsed')+'" data-block="'+rid+'">';
+    html += head(rid, rn, esc(u.title), vis.length+' 章 · '+(u.printed?'p. '+u.printed:''), (ui%3===1?'alt':(ui%3===2?'warm':'')));
+    html += '<div class="block-body">';
+    vis.forEach(({ch, secs}) => {
+      const cid = rid+'-c'+ch.ci;
+      const cOpen = q ? true : chExpanded.has(cid);
+      html += '<div class="chapter'+(cOpen?'':' collapsed')+'" data-ch="'+cid+'">';
+      html += '<div class="ch-head"><span class="ch-num">Ch '+ch.c.num+'</span><span class="ct">'+hl(ch.c.title,q)+'</span>'
+            + '<span class="pg">'+(ch.c.printed?'p. '+ch.c.printed:'')+'</span>'
+            + '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>';
+      html += '<div class="ch-body">';
+      if(secs.length) secs.forEach(s => { shown++; html += leafRow(s.idx, s.num, s.title, s.printed, q, s.hw); });
+      else html += '<div class="muted">本章暂无匹配小节</div>';
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+  });
+
+  if(DATA.appendices){
+    const ap = DATA.appendices.items
+      .map(a => ({...a, idx: idToIdx.get(a.id)}))
+      .filter(a => !q || norm(a.title).includes(q));
+    if(ap.length){
+      html += '<div class="block'+(q?'':' collapsed')+'" data-block="appendix">';
+      html += head('appendix','附','Appendices 附录', ap.length+' 项', 'warm');
+      html += '<div class="block-body">';
+      ap.forEach(a => { shown++; html += leafRow(a.idx, '', a.title, a.printed, q); });
+      html += '</div></div>';
+    }
+  }
+  if(DATA.index){
+    const ix = DATA.index;
+    if(!q || norm(ix.title).includes(q) || norm('index glossary').includes(q)){
+      shown++;
+      html += '<div class="block" data-block="index">' + head('index','索','Index / Glossary 索引与术语表','','alt');
+      html += '<div class="block-body">' + leafRow(idToIdx.get(ix.id), '', ix.title, ix.printed, q) + '</div></div>';
+    }
+  }
+
+  $('#toc').innerHTML = html;
+  $('#count').textContent = q ? ('命中 ' + shown + ' 个条目') : ('共 ' + DATA.counts.sections + ' 个小节 · ' + DATA.counts.chapters + ' 章');
+  if(activeIdx >= 0) markActive();
+  updateResume();
+}
+function head(id, badge, title, meta, cls){
+  return '<div class="block-head" data-toggle="'+id+'"><span class="unit-badge '+(cls||'')+'">'+badge+'</span>'
+    + '<span class="t"><h2>'+title+'</h2>'+(meta?'<p>'+meta+'</p>':'')+'</span>'
+    + '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>';
+}
+function leafRow(idx, num, title, printed, q, hw){
+  let html = '<div class="leaf" data-idx="'+idx+'">'
+    + (num ? '<span class="snum">'+esc(num)+'</span>' : '')
+    + '<span class="stitle">'+hl(title,q)+'</span>'
+    + '<span class="leader"></span><span class="pg">'+(printed!=='' && printed!=null ? 'p. '+esc(printed) : '')+'</span></div>';
+  if(hw) html += hwRow(idx, hw);
+  return html;
+}
+function hwRow(idx, hw){
+  return '<div class="hwrow" data-idx="'+idx+'" data-hw="'+hw.pdf+'" data-hwp="'+hw.printed+'" title="本节作业习题">'
+    + '<span class="hwt">作业</span><span class="hwn">本节习题</span>'
+    + '<span class="leader"></span><span class="pg">p. '+esc(hw.printed)+'</span></div>';
+}
+function markActive(){
+  document.querySelectorAll('.leaf.active').forEach(e => e.classList.remove('active'));
+  const el = document.querySelector('.leaf[data-idx="'+activeIdx+'"]');
+  if(el) el.classList.add('active');
+}
+function updateResume(){
+  const c = $('#resumeChip');
+  if(activeIdx < 0){ c.classList.add('hidden'); return; }
+  const it = LEAVES[activeIdx];
+  $('#resumeText').textContent = (it.num ? it.num+' ' : '') + it.title;
+  c.classList.remove('hidden');
+}
+
+/* ---- views ---- */
+function showToc(){
+  $('#viewRead').hidden = true; $('#viewLocate').hidden = true; $('#viewToc').hidden = false;
+  $('#app').classList.remove('reading');
+  if(activeIdx >= 0){ const el = document.querySelector('.leaf[data-idx="'+activeIdx+'"]'); if(el) el.scrollIntoView({block:'center'}); }
+}
+function showRead(){
+  $('#viewToc').hidden = true; $('#viewLocate').hidden = true; $('#viewRead').hidden = false;
+  $('#app').classList.add('reading');
+  if(!swipeHinted){ swipeHinted = true; setTimeout(() => toast(AI_ENABLED ? '左右滑动翻页 · 双击放大 · 点 ✦ 按钮 AI 检索' : '左右滑动翻页 · 双击放大'), 650); }
+}
+function showLocate(){
+  $('#viewToc').hidden = true; $('#viewRead').hidden = true; $('#viewLocate').hidden = false;
+  $('#app').classList.add('reading');
+}
+
+/* ---- reader ---- */
+function leafForPage(p){
+  let best = -1, bp = -1;
+  LEAVES.forEach((L,i) => { if(L.pdf <= p && L.pdf >= bp){ bp = L.pdf; best = i; } });
+  return best;
+}
+function setZoom(z, keepScroll){
+  zoom = Math.max(ZOOMS[0], Math.min(ZOOMS[ZOOMS.length-1], z));
+  const w = $('#pagewrap');
+  if(zoom <= 1.001){ w.style.width = ''; w.style.maxWidth = ''; }
+  else { w.style.maxWidth = 'none'; w.style.width = (zoom*100) + '%'; }
+  if(!keepScroll) $('#rstage').scrollTop = 0;
+}
+function preload(p){ if(p>=1 && p<=TOTAL){ const im = new Image(); im.src = pageSrc(p); } }
+
+function setPage(p, opts){
+  p = Math.max(1, Math.min(TOTAL, p));
+  const first = (curPage !== p) || !$('#pageImg').getAttribute('src');
+  curPage = p;
+  $('#pgNow').textContent = p + ' / ' + TOTAL;
+  if(!(opts && opts.keepLeaf)){
+    const li = leafForPage(p);
+    if(li >= 0){
+      activeIdx = li;
+      const it = LEAVES[li];
+      $('#rTitle').textContent = (it.num ? it.num + ' ' : '') + it.title;
+      $('#rCtx').textContent = it.ctx + ' · 原书 p.' + (it.printed !== '' ? it.printed : it.pdf) + ' · PDF 第 ' + p + ' 页';
+    }
+  }
+  markActive();
+  $('#btnPrevPage').disabled = p <= 1;
+  $('#btnNextPage').disabled = p >= TOTAL;
+  $('#btnPrevSec').disabled = activeIdx <= 0;
+  $('#btnNextSec').disabled = activeIdx >= LEAVES.length - 1;
+  $('#pgmiss').classList.remove('show');
+  if(first){
+    $('#pload').classList.add('show');
+    $('#pageImg').src = pageSrc(p);
+  }
+  preload(p+1); preload(p-1);
+  try{ localStorage.setItem('pmc_state', JSON.stringify({page: p, idx: activeIdx})); }catch(_){}
+}
+$('#pageImg').addEventListener('load', () => {
+  $('#pload').classList.remove('show'); $('#pgmiss').classList.remove('show');
+  const im = $('#pageImg'); im.classList.remove('anim'); void im.offsetWidth; im.classList.add('anim');
+});
+$('#pageImg').addEventListener('error', () => { $('#pload').classList.remove('show'); $('#pgmiss').classList.add('show'); });
+
+function openLeaf(i){
+  if(i < 0 || i >= LEAVES.length) return;
+  activeIdx = i;
+  showRead(); setZoom(1); setPage(LEAVES[i].pdf);
+}
+function openHw(i, pdf, printed){
+  if(i < 0 || i >= LEAVES.length) return;
+  activeIdx = i;
+  showRead(); setZoom(1); setPage(pdf, {keepLeaf: true});
+  const it = LEAVES[i];
+  $('#rTitle').textContent = '作业 · ' + (it.num ? it.num + ' ' : '') + it.title;
+  $('#rCtx').textContent = '本节习题 · 原书 p.' + printed + ' · PDF 第 ' + pdf + ' 页';
+}
+
+/* ---- toast ---- */
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ---- AI 检索弹窗 ---- */
+function openAsk(){
+  if(!AI_ENABLED){ toast('本页为纯静态阅读版，AI 检索请使用服务器版'); return; }
+  $('#askInput').value = ''; setAskStatus('');
+  $('#askModal').hidden = false;
+  setTimeout(() => $('#askInput').focus(), 80);
+}
+function closeAsk(){ $('#askModal').hidden = true; }
+function setAskStatus(msg, kind){
+  const el = $('#askStatus'); el.textContent = msg || '';
+  el.className = 'ask-status' + (kind ? ' ' + kind : '');
+}
+async function submitAsk(){
+  const q = $('#askInput').value.trim();
+  if(!q){ setAskStatus('请输入要检索的知识点或问题', 'error'); return; }
+  if(location.protocol === 'file:'){
+    setAskStatus('本地打开时无法调用 AI 检索，请使用服务器版 http://47.97.226.186/chem/', 'error');
+    return;
+  }
+  $('#askGo').disabled = true;
+  setAskStatus('GLM-4.5-Air 正在检索目录…', 'loading');
+  try{
+    const resp = await fetch('api/locate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: q})
+    });
+    const data = await resp.json().catch(() => ({}));
+    if(!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+    lastLocate = {q, data};
+    renderLocate(q, data);
+    closeAsk();
+    showLocate();
+  }catch(e){
+    setAskStatus('检索失败：' + e.message, 'error');
+  }finally{
+    $('#askGo').disabled = false;
+  }
+}
+// 把 GLM 返回的编号解析成 LEAVES 下标。模型偶尔会返回 "CH 5.5" 这类拼接写法，
+// 这里做容错归一：章节号落到该章第一小节，单元落到该单元第一小节。
+function resolveNum(raw){
+  let s = String(raw || '').trim().toUpperCase().replace(/\s+/g, ' ');
+  if(!s) return -1;
+  if(idToIdx.has(s)) return idToIdx.get(s);
+  let m;
+  if((m = s.match(/^(?:CH|CHAPTER)\s*0*(\d+)(?:\.(\d+))?$/))){
+    const n = +m[1];
+    if(m[2]){ const k = n + '.' + (+m[2]); if(idToIdx.has(k)) return idToIdx.get(k); }
+    if(chapterFirst.has(n)) return idToIdx.get(chapterFirst.get(n));
+    return -1;
+  }
+  if((m = s.match(/^UNIT\s+([IVX]+)$/))) return unitFirst.has(m[1]) ? idToIdx.get(unitFirst.get(m[1])) : -1;
+  if((m = s.match(/^(?:APX|APPENDIX)[\s-]*([A-Z])$/))){ const k = 'APX-' + m[1]; return idToIdx.has(k) ? idToIdx.get(k) : -1; }
+  if((m = s.match(/^(\d+)\.(\d+)$/))){ const k = (+m[1]) + '.' + (+m[2]); return idToIdx.has(k) ? idToIdx.get(k) : -1; }
+  if((m = s.match(/(\d+)\.(\d+)/))){ const k = (+m[1]) + '.' + (+m[2]); if(idToIdx.has(k)) return idToIdx.get(k); }
+  return -1;
+}
+
+function renderLocate(q, data){
+  const seen = new Set(), uniq = [];
+  (data.items || []).forEach(it => {
+    const key = String(it.num || '').trim();
+    const idx = resolveNum(key);
+    if(idx < 0 || seen.has(idx)) return;
+    seen.add(idx);
+    uniq.push({idx, reason: String(it.reason || '').trim()});
+  });
+  $('#locQuery').textContent = q;
+  $('#locMeta').textContent = uniq.length ? ('AI 定位到 ' + uniq.length + ' 个相关小节') : '未定位到相关小节';
+  let html = '';
+  if(data.note) html += '<div class="loc-note">' + esc(data.note) + '</div>';
+  if(!uniq.length){
+    html += '<div class="loc-empty">没有从目录中定位到相关小节。<br>可以换个说法再问一次，或返回目录手动查找。</div>';
+  } else {
+    uniq.forEach((x, i) => {
+      const L = LEAVES[x.idx];
+      html += '<div class="loc-item" data-idx="' + x.idx + '">'
+        + '<div class="loc-rank">' + (i + 1) + '</div>'
+        + '<div class="loc-main">'
+        + '<div class="loc-title">' + (L.num ? '<span class="snum">' + esc(L.num) + '</span>' : '') + esc(L.title) + '</div>'
+        + '<div class="loc-ctx">' + esc(L.ctx) + ' · 原书 p.' + esc(L.printed !== '' ? L.printed : L.pdf) + ' · PDF 第 ' + L.pdf + ' 页</div>'
+        + (x.reason ? '<div class="loc-reason">' + esc(x.reason) + '</div>' : '')
+        + '</div>'
+        + '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+        + '</div>';
+    });
+  }
+  $('#locWrap').innerHTML = html;
+}
+
+/* ---- toc events ---- */
+$('#toc').addEventListener('click', e => {
+  const hw = e.target.closest('.hwrow');
+  if(hw){ openHw(+hw.dataset.idx, +hw.dataset.hw, hw.dataset.hwp); return; }
+  const leaf = e.target.closest('.leaf');
+  if(leaf){
+    const i = +leaf.dataset.idx;
+    if(e.ctrlKey || e.metaKey){ window.open(PDF_URL + '#page=' + LEAVES[i].pdf, '_blank'); return; }
+    openLeaf(i); return;
+  }
+  const bh = e.target.closest('.block-head');
+  if(bh){
+    const block = bh.closest('.block'), id = block.dataset.block;
+    if(query){ query=''; $('#q').value=''; render(); return; }
+    block.classList.toggle('collapsed');
+    if(block.classList.contains('collapsed')) expanded.delete(id); else expanded.add(id);
+    return;
+  }
+  const chh = e.target.closest('.ch-head');
+  if(chh){
+    const ch = chh.closest('.chapter'); ch.classList.toggle('collapsed');
+    const id = ch.dataset.ch;
+    if(ch.classList.contains('collapsed')) chExpanded.delete(id); else chExpanded.add(id);
+  }
+});
+$('#q').addEventListener('input', e => { query = e.target.value; render(); });
+$('#expandAll').addEventListener('click', () => {
+  query=''; $('#q').value='';
+  DATA.units.forEach((u,ui)=>{ expanded.add('u'+ui); u.chapters.forEach((c,ci)=>chExpanded.add('u'+ui+'-c'+ci)); });
+  render();
+});
+$('#collapseAll').addEventListener('click', () => { query=''; $('#q').value=''; expanded.clear(); chExpanded.clear(); render(); });
+$('#resumeChip').addEventListener('click', () => openLeaf(activeIdx));
+$('#aiChip').addEventListener('click', openAsk);
+
+/* ---- locate events ---- */
+$('#locBack').addEventListener('click', showToc);
+$('#locAgain').addEventListener('click', openAsk);
+$('#locWrap').addEventListener('click', e => {
+  const it = e.target.closest('.loc-item');
+  if(it) openLeaf(+it.dataset.idx);
+});
+
+/* ---- modal events ---- */
+$('#askClose').addEventListener('click', closeAsk);
+$('#askCancel').addEventListener('click', closeAsk);
+$('#askGo').addEventListener('click', submitAsk);
+$('#askModal').addEventListener('click', e => { if(e.target === $('#askModal')) closeAsk(); });
+$('#askHints').addEventListener('click', e => {
+  const c = e.target.closest('.hint-chip');
+  if(c){ $('#askInput').value = c.textContent.trim(); $('#askInput').focus(); }
+});
+$('#askInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); submitAsk(); }
+});
+
+/* ---- reader events ---- */
+$('#btnBack').addEventListener('click', showToc);
+$('#btnPrevPage').addEventListener('click', () => setPage(curPage - 1));
+$('#btnNextPage').addEventListener('click', () => setPage(curPage + 1));
+$('#btnPrevSec').addEventListener('click', () => openLeaf(activeIdx - 1));
+$('#btnNextSec').addEventListener('click', () => openLeaf(activeIdx + 1));
+$('#btnZoomIn').addEventListener('click', () => {
+  const i = ZOOMS.findIndex(z => z > zoom + 0.01);
+  if(i < 0){ toast('已放到最大'); return; }
+  setZoom(ZOOMS[i], true);
+});
+$('#btnZoomOut').addEventListener('click', () => {
+  let i = -1;
+  for(let k = ZOOMS.length - 1; k >= 0; k--){ if(ZOOMS[k] < zoom - 0.01){ i = k; break; } }
+  if(i < 0){ toast('已缩到最小'); return; }
+  setZoom(ZOOMS[i], true);
+});
+$('#btnExt').addEventListener('click', () => window.open(PDF_URL + '#page=' + curPage, '_blank'));
+$('#btnAI').addEventListener('click', openAsk);
+
+/* ---- 滑动翻页（触摸 + 鼠标拖拽） ---- */
+(function(){
+  const st = $('#rstage');
+  let x0 = 0, y0 = 0, moved = false, lastTap = 0, dragging = false;
+  function down(x, y){ x0 = x; y0 = y; moved = false; }
+  function move(x, y){ if(Math.abs(x - x0) > 12) moved = true; }
+  function up(x, y){
+    const dx = x - x0, dy = y - y0, now = Date.now();
+    if(!moved && Math.abs(dx) < 12 && Math.abs(dy) < 12){
+      if(now - lastTap < 300){ setZoom(zoom > 1.01 ? 1 : 2, true); lastTap = 0; return; }
+      lastTap = now; return;
+    }
+    if(zoom <= 1.01 && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2){
+      if(dx < 0) setPage(curPage + 1); else setPage(curPage - 1);
+    }
+  }
+  st.addEventListener('touchstart', e => { if(e.touches.length === 1) down(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+  st.addEventListener('touchmove', e => { if(e.touches.length === 1) move(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+  st.addEventListener('touchend', e => { const t = e.changedTouches[0]; up(t.clientX, t.clientY); }, {passive:true});
+  st.addEventListener('mousedown', e => { if(e.button === 0){ dragging = true; down(e.clientX, e.clientY); } });
+  st.addEventListener('mousemove', e => { if(dragging) move(e.clientX, e.clientY); });
+  st.addEventListener('mouseup', e => { if(dragging){ dragging = false; up(e.clientX, e.clientY); } });
+  st.addEventListener('mouseleave', () => { dragging = false; });
+})();
+
+
+
+
+
+document.addEventListener('keydown', e => {
+  const askOpen = !$('#askModal').hidden;
+  if(askOpen){ if(e.key === 'Escape') closeAsk(); return; }
+  const reading = !$('#viewRead').hidden, locating = !$('#viewLocate').hidden;
+  if(e.key === '/' && !reading && !locating && document.activeElement !== $('#q')){ e.preventDefault(); $('#q').focus(); return; }
+  if(e.key === 'Escape'){
+    if(document.activeElement === $('#q')){ $('#q').value=''; query=''; render(); $('#q').blur(); }
+    else if(reading || locating){ showToc(); }
+    return;
+  }
+  if(reading){
+    if(e.key === 'ArrowLeft'){ e.preventDefault(); setPage(curPage - 1); }
+    if(e.key === 'ArrowRight'){ e.preventDefault(); setPage(curPage + 1); }
+    if(e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); openLeaf(activeIdx - 1); }
+    if(e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); openLeaf(activeIdx + 1); }
+  }
+  if(e.key === 'a' || e.key === 'A'){ if(!reading && !locating) openAsk(); }
+});
+
+/* ---- init ---- */
+$('#btnPrevPage').disabled = true; $('#btnPrevSec').disabled = true; $('#btnNextSec').disabled = true;
+if(!AI_ENABLED){ $('#btnAI').hidden = true; $('#aiChip').hidden = true; $('#btnExt').hidden = true; }
+try{
+  const s = JSON.parse(localStorage.getItem('pmc_state') || 'null');
+  if(s && s.idx >= 0 && s.idx < LEAVES.length){ activeIdx = s.idx; curPage = s.page || LEAVES[s.idx].pdf; }
+}catch(_){}
+render();
+</script>
+</body>
+</html>
