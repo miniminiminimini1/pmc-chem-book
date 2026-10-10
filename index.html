@@ -163,6 +163,7 @@ mark{background:#fde68a;color:#7c2d12;border-radius:3px;padding:0 2px}
 .rstage{
   flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;background:#dde4ec;
   padding:10px 0 14px;position:relative;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:pan-x pan-y;
 }
 .pagewrap{width:100%;max-width:880px;margin:0 auto;position:relative;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 6px 24px -12px rgba(15,23,42,.4)}
 #pageImg{width:100%;display:block;background:#fff}
@@ -441,7 +442,8 @@ let query = '', activeIdx = -1, curPage = 1, zoom = 1;
 let swipeHinted = false, lastLocate = null;
 let transOn = false, textOn = false, layerHinted = false;
 const transCache = new Map(), blocksCache = new Map();
-const ZOOMS = [1, 1.4, 1.9, 2.6];
+const ZOOMS = [1, 1.4, 1.9, 2.6, 4];
+const ZOOM_MIN = 1, ZOOM_MAX = 4;
 
 /* ---- render toc ---- */
 function render(){
@@ -565,7 +567,7 @@ function showToc(){
 function showRead(){
   $('#viewToc').hidden = true; $('#viewLocate').hidden = true; $('#viewRead').hidden = false;
   $('#app').classList.add('reading');
-  if(!swipeHinted){ swipeHinted = true; setTimeout(() => toast(AI_ENABLED ? '左右滑动翻页 · 双击放大 · 点「译」整页翻译 · 点 ✦ AI 检索' : (TEXT_ENABLED ? '左右滑动翻页 · 双击放大 · 点「文本」切换纯文本' : '左右滑动翻页 · 双击放大')), 650); }
+  if(!swipeHinted){ swipeHinted = true; setTimeout(() => toast(AI_ENABLED ? '左右滑动翻页 · 双击放大 · 双指捏合缩放 · 点「译」整页翻译 · 点 ✦ AI 检索' : (TEXT_ENABLED ? '左右滑动翻页 · 双击放大 · 双指捏合缩放 · 点「文本」切换纯文本' : '左右滑动翻页 · 双击放大 · 双指捏合缩放')), 650); }
 }
 function showLocate(){
   $('#viewToc').hidden = true; $('#viewRead').hidden = true; $('#viewLocate').hidden = false;
@@ -578,14 +580,21 @@ function leafForPage(p){
   LEAVES.forEach((L,i) => { if(L.pdf <= p && L.pdf >= bp){ bp = L.pdf; best = i; } });
   return best;
 }
-function setZoom(z, keepScroll){
-  zoom = Math.max(ZOOMS[0], Math.min(ZOOMS[ZOOMS.length-1], z));
+function syncPgh(){
+  const img = $('#pageImg');
+  if(img && img.clientHeight) $('#pagewrap').style.setProperty('--pgh', img.clientHeight + 'px');
+}
+function applyZoom(z){
+  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
   const w = $('#pagewrap');
   if(zoom <= 1.001){ w.style.width = ''; w.style.maxWidth = ''; }
   else { w.style.maxWidth = 'none'; w.style.width = (zoom*100) + '%'; }
-  if(!keepScroll) $('#rstage').scrollTop = 0;
+  syncPgh();
   $('#transLayer').classList.toggle('sel', zoom > 1.01);
-  if(transOn || textOn) requestAnimationFrame(() => renderLayer(curPage));
+}
+function setZoom(z, keepScroll){
+  applyZoom(z);
+  if(!keepScroll) $('#rstage').scrollTop = 0;
 }
 function preload(p){ if(p>=1 && p<=TOTAL){ const im = new Image(); im.src = pageSrc(p); } }
 
@@ -629,15 +638,15 @@ async function renderLayer(p){
     if(!b.t || !b.w || !b.h) return;
     const mk = kmap[i];
     if(mk && mk.k === 0) return;
-    const fs = Math.max(5, b.fs * H);
     html += '<div class="tblk" style="left:' + (b.x*100).toFixed(3) + '%;top:' + (b.y*100).toFixed(3)
           + '%;width:' + (b.w*100).toFixed(3) + '%;height:' + (b.h*100).toFixed(3)
-          + '%;font-size:' + fs.toFixed(1) + 'px;line-height:' + (fs*1.3).toFixed(1) + 'px">' + esc(b.t) + '</div>';
+          + '%;font-size:calc(var(--pgh,0px) * ' + b.fs.toFixed(5) + ');line-height:calc(var(--pgh,0px) * ' + (b.fs*1.3).toFixed(5) + ')">' + esc(b.t) + '</div>';
   });
   const L = $('#transLayer');
   L.innerHTML = html;
   L.hidden = !html;
   L.classList.toggle('sel', zoom > 1.01);
+  syncPgh();
 }
 function setTrans(on, silent){
   if(!TRANS_ENABLED) return;
@@ -688,6 +697,7 @@ function setPage(p, opts){
 $('#pageImg').addEventListener('load', () => {
   $('#pload').classList.remove('show'); $('#pgmiss').classList.remove('show');
   const im = $('#pageImg'); im.classList.remove('anim'); void im.offsetWidth; im.classList.add('anim');
+  syncPgh();
   if(transOn || textOn) renderLayer(curPage);
 });
 $('#pageImg').addEventListener('error', () => { $('#pload').classList.remove('show'); $('#pgmiss').classList.add('show'); });
@@ -880,10 +890,14 @@ $('#btnAI').addEventListener('click', openAsk);
 $('#btnTrans').addEventListener('click', () => setTrans(!transOn));
 $('#btnText').addEventListener('click', () => setText(!textOn));
 
-/* ---- 滑动翻页（触摸 + 鼠标拖拽） ---- */
+/* ---- 手势：单指滑动翻页 / 双击缩放 / 双指捏合缩放 ---- */
 (function(){
   const st = $('#rstage');
   let x0 = 0, y0 = 0, moved = false, lastTap = 0, dragging = false;
+  let pinch = false, lastDist = 0, lastMid = null, lastZoom = 1;
+
+  function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+  function mid(a, b){ return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }; }
   function down(x, y){ x0 = x; y0 = y; moved = false; }
   function move(x, y){ if(Math.abs(x - x0) > 12) moved = true; }
   function up(x, y){
@@ -896,9 +910,57 @@ $('#btnText').addEventListener('click', () => setText(!textOn));
       if(dx < 0) setPage(curPage + 1); else setPage(curPage - 1);
     }
   }
-  st.addEventListener('touchstart', e => { if(e.touches.length === 1) down(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
-  st.addEventListener('touchmove', e => { if(e.touches.length === 1) move(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
-  st.addEventListener('touchend', e => { const t = e.changedTouches[0]; up(t.clientX, t.clientY); }, {passive:true});
+
+  function pinchStart(e){
+    pinch = true; dragging = false;
+    lastDist = dist(e.touches[0], e.touches[1]);
+    lastMid  = mid(e.touches[0], e.touches[1]);
+    lastZoom = zoom;
+  }
+  // 以双指中点为锚点缩放，中点位移同时带动平移
+  function pinchMove(e){
+    const d = dist(e.touches[0], e.touches[1]);
+    const m = mid(e.touches[0], e.touches[1]);
+    if(!lastDist || !lastMid){ lastDist = d; lastMid = m; lastZoom = zoom; return; }
+    const nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, lastZoom * (d / lastDist)));
+    const k  = nz / lastZoom;
+    const r  = st.getBoundingClientRect();
+    const cx = st.scrollLeft + (lastMid.x - r.left);
+    const cy = st.scrollTop  + (lastMid.y - r.top);
+    applyZoom(nz);
+    st.scrollLeft = cx * k - (m.x - r.left);
+    st.scrollTop  = cy * k - (m.y - r.top);
+    lastDist = d; lastMid = m; lastZoom = nz;
+  }
+  function pinchReset(){ pinch = false; lastDist = 0; lastMid = null; }
+  function pinchEnd(){
+    pinchReset();
+    if(zoom < 1.02){ setZoom(1, true); st.scrollLeft = 0; st.scrollTop = 0; }
+  }
+
+  st.addEventListener('touchstart', e => {
+    if(e.touches.length >= 2){ pinchStart(e); e.preventDefault(); }
+    else if(e.touches.length === 1 && !pinch){ down(e.touches[0].clientX, e.touches[0].clientY); }
+  }, {passive:false});
+  st.addEventListener('touchmove', e => {
+    if(e.touches.length >= 2){ pinchMove(e); e.preventDefault(); }
+    else if(e.touches.length === 1 && !pinch){ move(e.touches[0].clientX, e.touches[0].clientY); }
+  }, {passive:false});
+  st.addEventListener('touchend', e => {
+    if(e.touches.length === 0){
+      if(pinch) pinchEnd();
+      else { const t = e.changedTouches[0]; up(t.clientX, t.clientY); }
+    } else if(pinch && e.touches.length === 1){
+      // 双指松开一指：结束捏合，重置单指起点，避免误触发翻页
+      pinchReset(); lastTap = 0;
+      down(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, {passive:false});
+  st.addEventListener('touchcancel', () => { pinchReset(); dragging = false; });
+  // iOS Safari：拦掉页面级捏合缩放，交给上面的逻辑处理
+  ['gesturestart','gesturechange','gestureend'].forEach(t =>
+    st.addEventListener(t, e => e.preventDefault(), {passive:false}));
+
   st.addEventListener('mousedown', e => { if(e.button === 0){ dragging = true; down(e.clientX, e.clientY); } });
   st.addEventListener('mousemove', e => { if(dragging) move(e.clientX, e.clientY); });
   st.addEventListener('mouseup', e => { if(dragging){ dragging = false; up(e.clientX, e.clientY); } });
